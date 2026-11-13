@@ -64,6 +64,14 @@ def forecast(prices, horizon):
     if sig1 is None:
         sig1 = 0.0025
     sig1 = min(CAP, max(FLOOR, sig1 * 1.25))
+    # Jump insurance: a market that was dead quiet for the last 6 hours can
+    # still jump (practice p00: one market moved 0.35 -> 0.59 in a minute).
+    # Never let the 6-hour estimate fall below half the market's own 72-hour
+    # robust sigma, so a quiet stretch does not collapse the spread.
+    all_rets = [prices[i + 1] - prices[i] for i in range(len(prices) - 1)]
+    sig72 = mad_scale(all_rets)
+    if sig72 is not None:
+        sig1 = max(sig1, 0.5 * sig72)
 
     rows = []
     for h in range(1, horizon + 1):
